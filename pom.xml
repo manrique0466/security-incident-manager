@@ -206,6 +206,8 @@
 				<configuration>
 					<failBuildOnCVSS>7</failBuildOnCVSS>
 					<suppressionFile>owasp-suppressions.xml</suppressionFile>
+					<!-- Do not fail the build if the NVD update fails; CVE threshold still applies -->
+					<failBuildOnError>false</failBuildOnError>
 				</configuration>
 			</plugin>
 

@@ -61,7 +61,7 @@ jobs:
       - name: Run OWASP Dependency Check
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: mvn dependency-check:check -Dnvd.api.key="${NVD_API_KEY}"
+        run: mvn dependency-check:check -Dnvd.api.key="${NVD_API_KEY}" -DnvdMaxRetryCount=5
 
       - name: Upload OWASP report
         if: always()
