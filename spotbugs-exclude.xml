@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+
+    <!--
+        JPA entities must expose mutable objects (User) via getters and setters
+        so Hibernate can read and write relationships. These are false positives.
+    -->
+    <Match>
+        <Class name="com.securityincidentmanager.domain.entity.Incident"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+
+</FindBugsFilter>
