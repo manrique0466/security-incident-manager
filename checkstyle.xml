@@ -43,7 +43,6 @@
 
         <!-- Whitespace -->
         <module name="WhitespaceAround"/>
-        <module name="NoWhitespaceAtEndOfLine"/>
 
         <!-- Braces -->
         <module name="NeedBraces"/>
