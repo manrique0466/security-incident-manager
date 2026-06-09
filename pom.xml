@@ -109,6 +109,18 @@
 			<artifactId>mapstruct</artifactId>
 			<version>${mapstruct.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>org.mapstruct</groupId>
+			<artifactId>mapstruct-processor</artifactId>
+			<version>${mapstruct.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok-mapstruct-binding</artifactId>
+			<version>${lombok-mapstruct-binding.version}</version>
+			<scope>provided</scope>
+		</dependency>
 
 		<!-- Testcontainers -->
 		<dependency>
@@ -127,6 +139,62 @@
 
 	<build>
 		<plugins>
+			<!-- Lock generated MapStruct class files using macOS chflags uchg (user-immutable).
+				 Unlike chmod, this prevents IntelliJ from DELETING and recreating the file,
+				 which is how it bypasses read-only permissions.
+				 'mvn clean' needs files unlocked first (pre-clean phase).
+				 Incremental builds unlock in 'initialize' before recompiling. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<executions>
+					<!-- Unlock before clean so 'mvn clean' can delete the target directory -->
+					<execution>
+						<id>unlock-mappers-pre-clean</id>
+						<phase>pre-clean</phase>
+						<goals><goal>run</goal></goals>
+						<configuration>
+							<target>
+								<exec executable="bash" failonerror="false">
+									<arg value="-c"/>
+									<arg value="find '${project.build.outputDirectory}/com/securityincidentmanager/mapper' -name '*MapperImpl.class' -exec chflags nouchg {} \; 2&gt;/dev/null || true"/>
+								</exec>
+							</target>
+						</configuration>
+					</execution>
+					<!-- Unlock at the start of the default lifecycle for incremental builds -->
+					<execution>
+						<id>unlock-mappers-initialize</id>
+						<phase>initialize</phase>
+						<goals><goal>run</goal></goals>
+						<configuration>
+							<target>
+								<exec executable="bash" failonerror="false">
+									<arg value="-c"/>
+									<arg value="find '${project.build.outputDirectory}/com/securityincidentmanager/mapper' -name '*MapperImpl.class' -exec chflags nouchg {} \; 2&gt;/dev/null || true"/>
+								</exec>
+							</target>
+						</configuration>
+					</execution>
+					<!-- Immediately after compile, make the class files user-immutable.
+							 IntelliJ cannot delete or overwrite them even as the file owner. -->
+					<execution>
+						<id>lock-mappers-after-compile</id>
+						<phase>process-classes</phase>
+						<goals><goal>run</goal></goals>
+						<configuration>
+							<target>
+								<exec executable="bash" failonerror="false">
+									<arg value="-c"/>
+									<arg value="find '${project.build.outputDirectory}/com/securityincidentmanager/mapper' -name '*MapperImpl.class' -exec chflags uchg {} \; 2&gt;/dev/null || true"/>
+								</exec>
+							</target>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
@@ -230,6 +298,10 @@
 							<goal>check</goal>
 						</goals>
 						<configuration>
+							<!-- Exclude the main app entry point — main() is never called in unit tests -->
+							<excludes>
+								<exclude>**/IncidentManagerApplication.class</exclude>
+							</excludes>
 							<rules>
 								<rule>
 									<element>BUNDLE</element>
