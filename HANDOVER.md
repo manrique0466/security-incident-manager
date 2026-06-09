@@ -112,7 +112,23 @@ Sprints are tracked in `sprint/` folder:
 - **Active branch:** `main` — Sprint 2 fully merged ✅
 - **All 23 tests passing** — `mvn clean verify` → BUILD SUCCESS
 - **Sprint 3 is active** — branch not yet created
-- **Next task:** Task 13 — create `feat/services-controllers` branch and build `IncidentService` + Mockito tests
+
+### Next task: Task 13 — IncidentService
+Create branch first:
+```bash
+git checkout -b feat/services-controllers
+```
+
+`IncidentService` goes in `com.securityincidentmanager.service`. Constructor-inject `IncidentRepository`, `UserRepository`, `IncidentMapper`. Methods needed:
+- `create(IncidentCreateRequest request, UUID reporterId)` — look up reporter by id, call `mapper.toEntity`, set reporter + status OPEN, save, return `mapper.toResponse`
+- `getById(UUID id)` — `findByIdAndDeletedAtIsNull` or throw `ResourceNotFoundException`
+- `getAll(Pageable pageable)` — `findAllByDeletedAtIsNull`, map to response list
+- `getByReporter(UUID reporterId)` — look up User, call `findAllByReporterAndDeletedAtIsNull`
+- `getByAnalyst(UUID analystId)` — same pattern
+- `update(UUID id, IncidentUpdateRequest request)` — get incident, apply only non-null fields, save
+- `softDelete(UUID id)` — get incident, set `deletedAt = now()`, save
+
+`IncidentServiceTest` — use `@ExtendWith(MockitoExtension.class)`, `@Mock` for repos and mapper, `@InjectMocks` for service. Test each method: verify repo calls, verify mapper calls, test not-found throws.
 
 ---
 
@@ -173,10 +189,6 @@ Now IntelliJ and Maven compile to separate directories and can never conflict.
 
 ---
 
-## Next sprint after merge: Sprint 3 — Services & Controllers
-
----
-
 ## Package Structure (follow exactly)
 ```
 com.securityincidentmanager
@@ -196,10 +208,12 @@ com.securityincidentmanager
 
 ---
 
-## Upcoming Work (see sprint/todo/)
-**Sprint 3 — Services & Controllers** ← START HERE after merge
-- IncidentService + UserService + unit tests (Mockito)
-- IncidentController + UserController + @WebMvcTest
+## Upcoming Work (see sprint/)
+**Sprint 3 — Services & Controllers** ← ACTIVE (`sprint/active/`)
+- Task 13: IncidentService + Mockito tests ← START HERE
+- Task 14: UserService + Mockito tests
+- Task 15: IncidentController + @WebMvcTest
+- Task 16: UserController + @WebMvcTest
 
 **Sprint 4 — Security (JWT + RBAC)**
 - JWT token service, JWT filter, auth endpoints

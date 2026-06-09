@@ -50,3 +50,7 @@ logs/
 
 ### OWASP ###
 dependency-check-report.*
+
+# Local session handover
+HANDOVER.md
+sprint/
