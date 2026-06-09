@@ -51,7 +51,7 @@ jobs:
         run: mvn spotbugs:check
 
       - name: Run OWASP Dependency Check
-        run: mvn dependency-check:check
+        run: mvn dependency-check:check -Dnvd.api.key=${{ secrets.NVD_API_KEY }}
 
       - name: Upload OWASP report
         if: always()
