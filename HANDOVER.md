@@ -109,9 +109,10 @@ Sprints are tracked in `sprint/` folder:
 ---
 
 ## Current State
-- **Active branch:** `main` (Sprint 2 merged)
+- **Active branch:** `main` — Sprint 2 fully merged ✅
 - **All 23 tests passing** — `mvn clean verify` → BUILD SUCCESS
-- **Next task:** Start Sprint 3 — Services & Controllers
+- **Sprint 3 is active** — branch not yet created
+- **Next task:** Task 13 — create `feat/services-controllers` branch and build `IncidentService` + Mockito tests
 
 ---
 
