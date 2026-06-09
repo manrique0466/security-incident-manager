@@ -7,7 +7,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
-public class IncidentMapper {
+public interface IncidentMapper {
 
     @Mapping(source = "reporter.id", target = "reporterId")
     @Mapping(source = "assignedAnalyst.id", target = "assignedAnalystId")
