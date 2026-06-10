@@ -23,6 +23,9 @@ Guided step-by-step as a beginner project with tests written alongside every fea
 - Reuse existing components — never create a duplicate
 - Follow `ARCHITECTURE.md` package structure at all times
 - Never start a new sprint until the current one is fully merged (see `sprint/BOARD.md`)
+- When user asks for "summary and handover", always update HANDOVER.md first, then commit it
+- **Before writing any new code, always read the relevant existing files first** — entity types, repository method signatures, and field names must be verified before use. Never assume — always check.
+- **All new code must align to existing structure**: use the same types (e.g. `LocalDateTime` not `Instant`), same method signatures as defined in the repository interface, same field names as in the entity. Mismatches cause compile errors.
 
 ---
 
@@ -105,30 +108,52 @@ Sprints are tracked in `sprint/` folder:
 | MapStruct `@Mapper` on a class | Must be `interface`, not `class` |
 | MapStruct "no write accessor" on response DTO | Add `@Setter` — MapStruct uses no-args constructor + setters by default |
 | IntelliJ ECJ overwrites Maven-compiled `*MapperImpl.class` | **FIXED** — IntelliJ output path changed to `out/production/classes` (Project Structure → Modules → Paths). Also added `maven-antrun-plugin` to `pom.xml` using `chflags uchg` to lock `*MapperImpl.class` after compile (belt-and-suspenders, macOS-safe with `failonerror=false`). Always fully quit IntelliJ (Cmd+Q) before running `mvn clean verify`. |
+| `Instant.now()` used instead of `LocalDateTime.now()` | All timestamp fields in entities use `LocalDateTime` — always read the entity before writing service code |
+| `IncidentRepository.save()` (capital I) instead of `incidentRepository.save()` | Java is case-sensitive — class name vs injected field name. Always use the lowercase field name |
+| `findAllByDeletedAtIsNull(id)` called in softDelete | Wrong method — use `findByIdAndDeletedAtIsNull(id)` for single-record lookup |
+| Repo methods returning `Page` called without `Pageable` arg | `findAllByReporterAndDeletedAtIsNull` and `findAllByAssignedAnalystAndDeletedAtIsNull` changed to return `List<Incident>` — only `getAll` needs pagination |
+| `Page` result streamed without `.getContent()` | `Page` is a wrapper — call `.getContent()` before `.stream()` to extract the list |
+| Duplicate string literals repeated across methods | Define `private static final String` constants at the top of the class |
 
 ---
 
 ## Current State
-- **Active branch:** `main` — Sprint 2 fully merged ✅
-- **All 23 tests passing** — `mvn clean verify` → BUILD SUCCESS
-- **Sprint 3 is active** — branch not yet created
+- **Active branch:** `feat/incident-service`
+- **Sprint 3 is active**
+- **All 23 tests still passing** from Sprint 2 (no regressions introduced)
+- **Frontend:** may be added after backend is complete — keep this in mind when planning Sprint 5+
 
-### Next task: Task 13 — IncidentService
-Create branch first:
+### Completed this session
+- `ResourceNotFoundException` created in `com.securityincidentmanager.exception`
+- `IncidentRepository` updated — `findAllByReporterAndDeletedAtIsNull` and `findAllByAssignedAnalystAndDeletedAtIsNull` now return `List<Incident>` (no Pageable needed for filtered queries)
+- `IncidentService` written and fixed in `com.securityincidentmanager.service` with all 7 methods: `create`, `getById`, `getAll`, `getByReporter`, `getByAnalyst`, `update`, `softDelete`
+- HANDOVER.md updated with new rules and known fixes
+
+### Next task: IncidentServiceTest ← START HERE
+Still on branch `feat/incident-service`. Write `IncidentServiceTest` in `src/test/java/com/securityincidentmanager/service/`.
+
+Use `@ExtendWith(MockitoExtension.class)`, `@Mock` for all three dependencies, `@InjectMocks` for the service. Test every method:
+- `create` — mock `userRepository.findById` returning a User, verify `incidentMapper.toEntity` called, verify `incidentRepository.save` called, verify response returned
+- `create` — mock `userRepository.findById` returning empty, assert `ResourceNotFoundException` thrown
+- `getById` — mock repo returning incident, verify mapper called
+- `getById` — mock repo returning empty, assert exception thrown
+- `getAll` — mock repo returning a `PageImpl`, verify list of responses returned
+- `getByReporter` — mock user lookup + repo, verify response list
+- `getByReporter` — user not found → exception
+- `getByAnalyst` — same pattern as getByReporter
+- `update` — mock incident found, verify only non-null fields applied, verify save called
+- `update` — incident not found → exception
+- `update` — with assignedAnalystId set, verify analyst lookup + setAssignedAnalyst called
+- `softDelete` — verify `deletedAt` set and save called
+- `softDelete` — incident not found → exception
+
+After tests pass: `mvn clean verify` (with IntelliJ fully closed), then commit and push:
 ```bash
-git checkout -b feat/services-controllers
+git add .
+git commit -m "feat: add IncidentService and ResourceNotFoundException"
+git push origin feat/incident-service
 ```
-
-`IncidentService` goes in `com.securityincidentmanager.service`. Constructor-inject `IncidentRepository`, `UserRepository`, `IncidentMapper`. Methods needed:
-- `create(IncidentCreateRequest request, UUID reporterId)` — look up reporter by id, call `mapper.toEntity`, set reporter + status OPEN, save, return `mapper.toResponse`
-- `getById(UUID id)` — `findByIdAndDeletedAtIsNull` or throw `ResourceNotFoundException`
-- `getAll(Pageable pageable)` — `findAllByDeletedAtIsNull`, map to response list
-- `getByReporter(UUID reporterId)` — look up User, call `findAllByReporterAndDeletedAtIsNull`
-- `getByAnalyst(UUID analystId)` — same pattern
-- `update(UUID id, IncidentUpdateRequest request)` — get incident, apply only non-null fields, save
-- `softDelete(UUID id)` — get incident, set `deletedAt = now()`, save
-
-`IncidentServiceTest` — use `@ExtendWith(MockitoExtension.class)`, `@Mock` for repos and mapper, `@InjectMocks` for service. Test each method: verify repo calls, verify mapper calls, test not-found throws.
+Then open a PR → merge → delete branch → start `feat/user-service`.
 
 ---
 
