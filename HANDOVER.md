@@ -117,7 +117,7 @@ Sprints are tracked in `sprint/` folder:
 | Duplicate string literals repeated across methods | Define `private static final String` constants at the top of the class |
 | Repository method signature changed but test not updated | When a repo method drops `Pageable`, update the test call, result type (`List` not `Page`), and assertions (`.size()` / `.isEmpty()` not `.getTotalElements()`) |
 | Mockito self-attaching warning on JDK 21 | Added `maven-surefire-plugin` with `@{argLine} -javaagent:...mockito-core-${mockito.version}.jar` — preserves JaCoCo's argLine and registers Mockito as a proper agent |
-| Checkstyle `NeedBraces` on single-line `if` | Always use `{ }` even for one-liner `if` bodies — `if (x != null) { doSomething(); }` |
+| Checkstyle `NeedBraces` + `LeftCurly` on `if` statements | Always use full block style — `{` must be followed by a line break, body indented on next line, closing `}` on its own line |
 
 ---
 
