@@ -72,10 +72,10 @@ public class IncidentService {
     public IncidentResponse update(UUID id, IncidentUpdateRequest request) {
         Incident incident = incidentRepository.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ResourceNotFoundException(INCIDENT_NOT_FOUND + id));
-        if (request.getTitle() != null) incident.setTitle(request.getTitle());
-        if (request.getDescription() != null) incident.setDescription(request.getDescription());
-        if (request.getPriority() != null) incident.setPriority(request.getPriority());
-        if (request.getStatus() != null) incident.setStatus(request.getStatus());
+        if (request.getTitle() != null) { incident.setTitle(request.getTitle()); }
+        if (request.getDescription() != null) { incident.setDescription(request.getDescription()); }
+        if (request.getPriority() != null) { incident.setPriority(request.getPriority()); }
+        if (request.getStatus() != null) { incident.setStatus(request.getStatus()); }
         if (request.getAssignedAnalystId() != null) {
             User analyst = userRepository.findById(request.getAssignedAnalystId())
                     .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + request.getAssignedAnalystId()));
