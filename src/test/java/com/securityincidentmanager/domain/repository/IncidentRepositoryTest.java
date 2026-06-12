@@ -16,6 +16,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -122,11 +123,11 @@ class IncidentRepositoryTest {
         incidentRepository.save(buildIncident("Reporter's incident", reporter));
         incidentRepository.save(buildIncident("Other's reporter's incident", analyst));
 
-        Page<Incident> result = incidentRepository
-                .findAllByReporterAndDeletedAtIsNull(reporter, PageRequest.of(0, 10));
+        List<Incident> result = incidentRepository
+                .findAllByReporterAndDeletedAtIsNull(reporter);
 
-        assertThat(result.getTotalElements()).isEqualTo(1);
-        assertThat(result.getContent().get(0).getTitle()).isEqualTo("Reporter's incident");
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getTitle()).isEqualTo("Reporter's incident");
     }
 
     @Test
@@ -136,11 +137,11 @@ class IncidentRepositoryTest {
         incidentRepository.save(assigned);
         incidentRepository.save(buildIncident("Unassigned incident", reporter));
 
-        Page<Incident> result = incidentRepository
-                .findAllByAssignedAnalystAndDeletedAtIsNull(analyst, PageRequest.of(0, 10));
+        List<Incident> result = incidentRepository
+                .findAllByAssignedAnalystAndDeletedAtIsNull(analyst);
 
-        assertThat(result.getTotalElements()).isEqualTo(1);
-        assertThat(result.getContent().get(0).getTitle()).isEqualTo("Assigned incident");
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getTitle()).isEqualTo("Assigned incident");
     }
 
     @Test
@@ -149,9 +150,9 @@ class IncidentRepositoryTest {
         deleted.setDeletedAt(LocalDateTime.now());
         incidentRepository.save(deleted);
 
-        Page<Incident> result = incidentRepository
-                .findAllByReporterAndDeletedAtIsNull(reporter, PageRequest.of(0, 10));
+        List<Incident> result = incidentRepository
+                .findAllByReporterAndDeletedAtIsNull(reporter);
 
-        assertThat(result.getTotalElements()).isZero();
+        assertThat(result).isEmpty();
     }
 }

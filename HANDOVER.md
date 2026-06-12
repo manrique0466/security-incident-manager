@@ -25,6 +25,7 @@ Guided step-by-step as a beginner project with tests written alongside every fea
 - Never start a new sprint until the current one is fully merged (see `sprint/BOARD.md`)
 - When user asks for "summary and handover", always update HANDOVER.md first, then commit it
 - **Before writing any new code, always read the relevant existing files first** — entity types, repository method signatures, and field names must be verified before use. Never assume — always check.
+- **Before writing any new test, always read the existing test files first** — match their exact structure, imports, assertion style (AssertJ), and naming conventions. Same rule as for production code.
 - **All new code must align to existing structure**: use the same types (e.g. `LocalDateTime` not `Instant`), same method signatures as defined in the repository interface, same field names as in the entity. Mismatches cause compile errors.
 
 ---
@@ -114,6 +115,8 @@ Sprints are tracked in `sprint/` folder:
 | Repo methods returning `Page` called without `Pageable` arg | `findAllByReporterAndDeletedAtIsNull` and `findAllByAssignedAnalystAndDeletedAtIsNull` changed to return `List<Incident>` — only `getAll` needs pagination |
 | `Page` result streamed without `.getContent()` | `Page` is a wrapper — call `.getContent()` before `.stream()` to extract the list |
 | Duplicate string literals repeated across methods | Define `private static final String` constants at the top of the class |
+| Repository method signature changed but test not updated | When a repo method drops `Pageable`, update the test call, result type (`List` not `Page`), and assertions (`.size()` / `.isEmpty()` not `.getTotalElements()`) |
+| Mockito self-attaching warning on JDK 21 | Added `maven-surefire-plugin` with `@{argLine} -javaagent:...mockito-core-${mockito.version}.jar` — preserves JaCoCo's argLine and registers Mockito as a proper agent |
 
 ---
 
@@ -126,28 +129,14 @@ Sprints are tracked in `sprint/` folder:
 ### Completed this session
 - `ResourceNotFoundException` created in `com.securityincidentmanager.exception`
 - `IncidentRepository` updated — `findAllByReporterAndDeletedAtIsNull` and `findAllByAssignedAnalystAndDeletedAtIsNull` now return `List<Incident>` (no Pageable needed for filtered queries)
-- `IncidentService` written and fixed in `com.securityincidentmanager.service` with all 7 methods: `create`, `getById`, `getAll`, `getByReporter`, `getByAnalyst`, `update`, `softDelete`
+- `IncidentService` written in `com.securityincidentmanager.service` with all 7 methods: `create`, `getById`, `getAll`, `getByReporter`, `getByAnalyst`, `update`, `softDelete`
+- `IncidentRepositoryTest` updated to match new `List<Incident>` return type (removed stale `Page`/`Pageable` calls)
+- `IncidentServiceTest` written — 13 tests, all passing, covers all 7 service methods including exception paths
+- `maven-surefire-plugin` added to `pom.xml` to fix Mockito JDK 21 self-attach warning
 - HANDOVER.md updated with new rules and known fixes
 
-### Next task: IncidentServiceTest ← START HERE
-Still on branch `feat/incident-service`. Write `IncidentServiceTest` in `src/test/java/com/securityincidentmanager/service/`.
-
-Use `@ExtendWith(MockitoExtension.class)`, `@Mock` for all three dependencies, `@InjectMocks` for the service. Test every method:
-- `create` — mock `userRepository.findById` returning a User, verify `incidentMapper.toEntity` called, verify `incidentRepository.save` called, verify response returned
-- `create` — mock `userRepository.findById` returning empty, assert `ResourceNotFoundException` thrown
-- `getById` — mock repo returning incident, verify mapper called
-- `getById` — mock repo returning empty, assert exception thrown
-- `getAll` — mock repo returning a `PageImpl`, verify list of responses returned
-- `getByReporter` — mock user lookup + repo, verify response list
-- `getByReporter` — user not found → exception
-- `getByAnalyst` — same pattern as getByReporter
-- `update` — mock incident found, verify only non-null fields applied, verify save called
-- `update` — incident not found → exception
-- `update` — with assignedAnalystId set, verify analyst lookup + setAssignedAnalyst called
-- `softDelete` — verify `deletedAt` set and save called
-- `softDelete` — incident not found → exception
-
-After tests pass: `mvn clean verify` (with IntelliJ fully closed), then commit and push:
+### Next task: commit, PR, merge, then UserService ← START HERE
+Still on branch `feat/incident-service`. All tests pass. Run `mvn clean verify` (IntelliJ fully closed), then:
 ```bash
 git add .
 git commit -m "feat: add IncidentService and ResourceNotFoundException"
