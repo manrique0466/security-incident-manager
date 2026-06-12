@@ -23,6 +23,10 @@ Guided step-by-step as a beginner project with tests written alongside every fea
 - Reuse existing components — never create a duplicate
 - Follow `ARCHITECTURE.md` package structure at all times
 - Never start a new sprint until the current one is fully merged (see `sprint/BOARD.md`)
+- When user asks for "summary and handover", always update HANDOVER.md first, then commit it
+- **Before writing any new code, always read the relevant existing files first** — entity types, repository method signatures, and field names must be verified before use. Never assume — always check.
+- **Before writing any new test, always read the existing test files first** — match their exact structure, imports, assertion style (AssertJ), and naming conventions. Same rule as for production code.
+- **All new code must align to existing structure**: use the same types (e.g. `LocalDateTime` not `Instant`), same method signatures as defined in the repository interface, same field names as in the entity. Mismatches cause compile errors.
 
 ---
 
@@ -105,30 +109,41 @@ Sprints are tracked in `sprint/` folder:
 | MapStruct `@Mapper` on a class | Must be `interface`, not `class` |
 | MapStruct "no write accessor" on response DTO | Add `@Setter` — MapStruct uses no-args constructor + setters by default |
 | IntelliJ ECJ overwrites Maven-compiled `*MapperImpl.class` | **FIXED** — IntelliJ output path changed to `out/production/classes` (Project Structure → Modules → Paths). Also added `maven-antrun-plugin` to `pom.xml` using `chflags uchg` to lock `*MapperImpl.class` after compile (belt-and-suspenders, macOS-safe with `failonerror=false`). Always fully quit IntelliJ (Cmd+Q) before running `mvn clean verify`. |
+| `Instant.now()` used instead of `LocalDateTime.now()` | All timestamp fields in entities use `LocalDateTime` — always read the entity before writing service code |
+| `IncidentRepository.save()` (capital I) instead of `incidentRepository.save()` | Java is case-sensitive — class name vs injected field name. Always use the lowercase field name |
+| `findAllByDeletedAtIsNull(id)` called in softDelete | Wrong method — use `findByIdAndDeletedAtIsNull(id)` for single-record lookup |
+| Repo methods returning `Page` called without `Pageable` arg | `findAllByReporterAndDeletedAtIsNull` and `findAllByAssignedAnalystAndDeletedAtIsNull` changed to return `List<Incident>` — only `getAll` needs pagination |
+| `Page` result streamed without `.getContent()` | `Page` is a wrapper — call `.getContent()` before `.stream()` to extract the list |
+| Duplicate string literals repeated across methods | Define `private static final String` constants at the top of the class |
+| Repository method signature changed but test not updated | When a repo method drops `Pageable`, update the test call, result type (`List` not `Page`), and assertions (`.size()` / `.isEmpty()` not `.getTotalElements()`) |
+| Mockito self-attaching warning on JDK 21 | Added `maven-surefire-plugin` with `@{argLine} -javaagent:...mockito-core-${mockito.version}.jar` — preserves JaCoCo's argLine and registers Mockito as a proper agent |
+| Checkstyle `NeedBraces` + `LeftCurly` on `if` statements | Always use full block style — `{` must be followed by a line break, body indented on next line, closing `}` on its own line |
 
 ---
 
 ## Current State
-- **Active branch:** `main` — Sprint 2 fully merged ✅
-- **All 23 tests passing** — `mvn clean verify` → BUILD SUCCESS
-- **Sprint 3 is active** — branch not yet created
+- **Active branch:** `feat/incident-service`
+- **Sprint 3 is active**
+- **All 23 tests still passing** from Sprint 2 (no regressions introduced)
+- **Frontend:** may be added after backend is complete — keep this in mind when planning Sprint 5+
 
-### Next task: Task 13 — IncidentService
-Create branch first:
+### Completed this session
+- `ResourceNotFoundException` created in `com.securityincidentmanager.exception`
+- `IncidentRepository` updated — `findAllByReporterAndDeletedAtIsNull` and `findAllByAssignedAnalystAndDeletedAtIsNull` now return `List<Incident>` (no Pageable needed for filtered queries)
+- `IncidentService` written in `com.securityincidentmanager.service` with all 7 methods: `create`, `getById`, `getAll`, `getByReporter`, `getByAnalyst`, `update`, `softDelete`
+- `IncidentRepositoryTest` updated to match new `List<Incident>` return type (removed stale `Page`/`Pageable` calls)
+- `IncidentServiceTest` written — 13 tests, all passing, covers all 7 service methods including exception paths
+- `maven-surefire-plugin` added to `pom.xml` to fix Mockito JDK 21 self-attach warning
+- HANDOVER.md updated with new rules and known fixes
+
+### Next task: commit, PR, merge, then UserService ← START HERE
+Still on branch `feat/incident-service`. All tests pass. Run `mvn clean verify` (IntelliJ fully closed), then:
 ```bash
-git checkout -b feat/services-controllers
+git add .
+git commit -m "feat: add IncidentService and ResourceNotFoundException"
+git push origin feat/incident-service
 ```
-
-`IncidentService` goes in `com.securityincidentmanager.service`. Constructor-inject `IncidentRepository`, `UserRepository`, `IncidentMapper`. Methods needed:
-- `create(IncidentCreateRequest request, UUID reporterId)` — look up reporter by id, call `mapper.toEntity`, set reporter + status OPEN, save, return `mapper.toResponse`
-- `getById(UUID id)` — `findByIdAndDeletedAtIsNull` or throw `ResourceNotFoundException`
-- `getAll(Pageable pageable)` — `findAllByDeletedAtIsNull`, map to response list
-- `getByReporter(UUID reporterId)` — look up User, call `findAllByReporterAndDeletedAtIsNull`
-- `getByAnalyst(UUID analystId)` — same pattern
-- `update(UUID id, IncidentUpdateRequest request)` — get incident, apply only non-null fields, save
-- `softDelete(UUID id)` — get incident, set `deletedAt = now()`, save
-
-`IncidentServiceTest` — use `@ExtendWith(MockitoExtension.class)`, `@Mock` for repos and mapper, `@InjectMocks` for service. Test each method: verify repo calls, verify mapper calls, test not-found throws.
+Then open a PR → merge → delete branch → start `feat/user-service`.
 
 ---
 
