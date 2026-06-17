@@ -88,7 +88,7 @@ Sprints are tracked in `sprint/` folder:
 - `UserResponse` — id, username, email, role, createdAt. Uses `@Getter @Setter @NoArgsConstructor @AllArgsConstructor`
 
 **Mappers:**
-- `UserMapper` — `toResponse(User)` → UserResponse. All fields match by name, no @Mapping needed.
+- `UserMapper` — `toUserResponse(User)` → UserResponse. All fields match by name, no @Mapping needed.
 - `IncidentMapper` — `toResponse(Incident)` with `reporter.id → reporterId`, `assignedAnalyst.id → assignedAnalystId`. `toEntity(IncidentCreateRequest)` ignores id, reporter, assignedAnalyst, status, timestamps.
 
 ---
@@ -118,32 +118,44 @@ Sprints are tracked in `sprint/` folder:
 | Repository method signature changed but test not updated | When a repo method drops `Pageable`, update the test call, result type (`List` not `Page`), and assertions (`.size()` / `.isEmpty()` not `.getTotalElements()`) |
 | Mockito self-attaching warning on JDK 21 | Added `maven-surefire-plugin` with `@{argLine} -javaagent:...mockito-core-${mockito.version}.jar` — preserves JaCoCo's argLine and registers Mockito as a proper agent |
 | Checkstyle `NeedBraces` + `LeftCurly` on `if` statements | Always use full block style — `{` must be followed by a line break, body indented on next line, closing `}` on its own line |
+| `@MockBean` deprecated since Spring Boot 3.4 | Use `@MockitoBean` from `org.springframework.test.context.bean.override.mockito.MockitoBean` instead |
+| `@WebMvcTest` loads Spring Security by default | Add `excludeAutoConfiguration = SecurityAutoConfiguration.class` to disable it until JWT is implemented in Sprint 4 |
+| Unused imports in controller / controller test | Never import `Incident` in the controller (not referenced there). In tests, only import what the test itself uses — don't copy all imports from the production class |
 
 ---
 
 ## Current State
-- **Active branch:** `feat/incident-service`
-- **Sprint 3 is active**
-- **All 23 tests still passing** from Sprint 2 (no regressions introduced)
+- **Active branch:** `main` (all Sprint 3 tasks merged except Task 16)
+- **Sprint 3 is active — Task 16 remaining**
+- **49 tests passing**
 - **Frontend:** may be added after backend is complete — keep this in mind when planning Sprint 5+
 
 ### Completed this session
-- `ResourceNotFoundException` created in `com.securityincidentmanager.exception`
-- `IncidentRepository` updated — `findAllByReporterAndDeletedAtIsNull` and `findAllByAssignedAnalystAndDeletedAtIsNull` now return `List<Incident>` (no Pageable needed for filtered queries)
-- `IncidentService` written in `com.securityincidentmanager.service` with all 7 methods: `create`, `getById`, `getAll`, `getByReporter`, `getByAnalyst`, `update`, `softDelete`
-- `IncidentRepositoryTest` updated to match new `List<Incident>` return type (removed stale `Page`/`Pageable` calls)
-- `IncidentServiceTest` written — 13 tests, all passing, covers all 7 service methods including exception paths
-- `maven-surefire-plugin` added to `pom.xml` to fix Mockito JDK 21 self-attach warning
-- HANDOVER.md updated with new rules and known fixes
+- `ResourceNotFoundException` — `com.securityincidentmanager.exception`
+- `IncidentService` — 7 methods: `create`, `getById`, `getAll`, `getByReporter`, `getByAnalyst`, `update`, `softDelete`
+- `IncidentServiceTest` — 13 Mockito tests, all passing
+- `UserService` — 3 methods: `getById`, `getAll`, `getByEmail`
+- `UserServiceTest` — 5 Mockito tests, all passing
+- `IncidentController` — 7 endpoints (POST, GET, GET/{id}, GET/reporter/{id}, GET/analyst/{id}, PUT/{id}, DELETE/{id})
+- `IncidentControllerTest` — 7 `@WebMvcTest` tests, all passing
+- `IncidentRepositoryTest` — updated to match `List<Incident>` return type
+- `pom.xml` — added `maven-surefire-plugin` for Mockito JDK 21 agent fix
 
-### Next task: commit, PR, merge, then UserService ← START HERE
-Still on branch `feat/incident-service`. All tests pass. Run `mvn clean verify` (IntelliJ fully closed), then:
+### Next task: UserController + @WebMvcTest ← START HERE
 ```bash
-git add .
-git commit -m "feat: add IncidentService and ResourceNotFoundException"
-git push origin feat/incident-service
+git checkout -b feat/user-controller
 ```
-Then open a PR → merge → delete branch → start `feat/user-service`.
+Follow the same pattern as `IncidentController`. Read `UserService.java` and `UserServiceTest.java` first.
+
+Endpoints:
+- `GET /api/users/{id}` → 200
+- `GET /api/users` → 200
+- `GET /api/users/email/{email}` → 200
+
+Tests (`@WebMvcTest`, `excludeAutoConfiguration = SecurityAutoConfiguration.class`, `@MockitoBean`):
+- `getById_shouldReturn200_withResponse`
+- `getAll_shouldReturn200_withList`
+- `getByEmail_shouldReturn200_withResponse`
 
 ---
 
@@ -225,10 +237,10 @@ com.securityincidentmanager
 
 ## Upcoming Work (see sprint/)
 **Sprint 3 — Services & Controllers** ← ACTIVE (`sprint/active/`)
-- Task 13: IncidentService + Mockito tests ← START HERE
-- Task 14: UserService + Mockito tests
-- Task 15: IncidentController + @WebMvcTest
-- Task 16: UserController + @WebMvcTest
+- Task 13: IncidentService + Mockito tests ✅
+- Task 14: UserService + Mockito tests ✅
+- Task 15: IncidentController + @WebMvcTest ✅
+- Task 16: UserController + @WebMvcTest ← NEXT
 
 **Sprint 4 — Security (JWT + RBAC)**
 - JWT token service, JWT filter, auth endpoints
