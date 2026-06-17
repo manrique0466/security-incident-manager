@@ -5,6 +5,8 @@ import com.securityincidentmanager.domain.entity.Incident;
 import com.securityincidentmanager.dto.request.IncidentCreateRequest;
 import com.securityincidentmanager.dto.request.IncidentUpdateRequest;
 import com.securityincidentmanager.dto.response.IncidentResponse;
+import com.securityincidentmanager.auth.CustomUserDetailsService;
+import com.securityincidentmanager.auth.JwtTokenService;
 import com.securityincidentmanager.service.IncidentService;
 
 import org.junit.jupiter.api.Test;
@@ -41,6 +43,12 @@ class IncidentControllerTest {
 
     @MockitoBean
     private IncidentService incidentService;
+
+    @MockitoBean
+    private JwtTokenService jwtTokenService;
+
+    @MockitoBean
+    private CustomUserDetailsService customUserDetailsService;
 
     // ── create ────────────────────────────────────────────────────────────────
 

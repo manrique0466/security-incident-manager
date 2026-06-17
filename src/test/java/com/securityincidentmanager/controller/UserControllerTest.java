@@ -1,6 +1,8 @@
 package com.securityincidentmanager.controller;
 
 import com.securityincidentmanager.dto.response.UserResponse;
+import com.securityincidentmanager.auth.CustomUserDetailsService;
+import com.securityincidentmanager.auth.JwtTokenService;
 import com.securityincidentmanager.service.UserService;
 
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,12 @@ class UserControllerTest {
 
     @MockitoBean
     private UserService userService;
+
+    @MockitoBean
+    private JwtTokenService jwtTokenService;
+
+    @MockitoBean
+    private CustomUserDetailsService customUserDetailsService;
 
     // ── getById ───────────────────────────────────────────────────────────────
 
