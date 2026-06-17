@@ -1,5 +1,9 @@
 # Incident Manager — Architecture & Development Rules
 
+> **Cross-references:**
+> - Current session state, active branch, next task, and session rules → `HANDOVER.md`
+> - Full history of completed work, known fixes, and architectural decisions → `PROJECT_LOG.md`
+
 ## Tech Stack
 | Layer | Technology |
 |---|---|
