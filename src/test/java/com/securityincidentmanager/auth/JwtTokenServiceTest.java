@@ -57,4 +57,11 @@ class JwtTokenServiceTest {
 
         assertThat(jwtTokenService.extractRole(token)).isEqualTo("ADMIN");
     }
+
+    // ── getExpirationMs ───────────────────────────────────────────────────────
+
+    @Test
+    void getExpirationMs_shouldReturnConfiguredValue() {
+        assertThat(jwtTokenService.getExpirationMs()).isEqualTo(84600000L);
+    }
 }

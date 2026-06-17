@@ -12,7 +12,8 @@ Guided step-by-step as a beginner project with tests written alongside every fea
 ---
 
 ## Rules (must follow every session)
-- User writes all Java code themselves — always ask before making Java changes
+- **🚫 ASSISTANT NEVER WRITES JAVA CODE TO DISK. EVER.** All `.java` files are written by the user. The assistant provides code in text blocks only — the user types it. This applies to every file, every session, no exceptions, even if the user says "just do it" or "finish this". The only time this rule was broken was during Task 19 setup. It must not happen again.
+- Assistant MAY write to disk: `.sql`, `.yaml`, `.yml`, `.xml`, `.properties`, `.md` files only
 - Always explain every class and what each piece of code does when providing Java code
 - Assistant may edit config, XML, YAML, SQL without asking
 - Write tests for everything — every class gets a test class, no exceptions
@@ -133,33 +134,106 @@ Sprints are tracked in `sprint/` folder:
 | Checkstyle `NeedBraces` + `LeftCurly` on `if` statements | Always use full block style — `{` must be followed by a line break, body indented on next line, closing `}` on its own line |
 | `@MockBean` deprecated since Spring Boot 3.4 | Use `@MockitoBean` from `org.springframework.test.context.bean.override.mockito.MockitoBean` instead |
 | `@WebMvcTest` loads Spring Security by default | Add `excludeAutoConfiguration = SecurityAutoConfiguration.class` to disable it until JWT is implemented in Sprint 4 |
+| `@WebMvcTest` fails because `JwtAuthenticationFilter` (`@Component`) needs `JwtTokenService` (`@Service` with `@Value`) | Add `@MockitoBean private JwtTokenService jwtTokenService` and `@MockitoBean private CustomUserDetailsService customUserDetailsService` to every controller test — these satisfy the filter's constructor without real beans |
 | Unused imports in controller / controller test | Never import `Incident` in the controller (not referenced there). In tests, only import what the test itself uses — don't copy all imports from the production class |
+| Refresh token returned in JSON body | **Never** put the refresh token in `AuthResponse` — XSS can steal it. Write it as an `HttpOnly; Secure; SameSite=Strict` cookie via `HttpServletResponse.addCookie()`. `/refresh` and `/logout` read it from `request.getCookies()` only |
+| Storing raw refresh token in database | Always store the SHA-256 hex hash (`token_hash VARCHAR(64)`), never the plaintext opaque string. The raw string is a credential — treat it like a password |
+| Revoking one token on theft detection is insufficient | If a `revoked = true` token is presented to `/refresh`, call `deleteAllByUser(user)` to wipe every session for that account, then return `401`. The attacker's rotated token is nuked |
+| Assuming Flyway migrations are invisible to tests | Wrong — `@SpringBootTest` and `@DataJpaTest` both boot Flyway against the Testcontainers PostgreSQL instance. A syntax error in any `V*.sql` file fails all 62 tests at context load, before a single test method runs |
+| `@WebMvcTest` POST endpoints return 403 even with `permitAll()` | Without `excludeAutoConfiguration = SecurityAutoConfiguration.class`, Spring Boot's CSRF protection remains active and blocks all POST requests — even on `permitAll()` paths. Every `@WebMvcTest` class in this project must include `excludeAutoConfiguration = SecurityAutoConfiguration.class`. |
+
+---
+
+## Architectural Adjustments (injected before Sprint 4 Task 19)
+
+These four changes were agreed in the session after Tasks 17–18 merged. They are non-breaking — zero existing classes are rewritten, and all 62 tests continue to pass. They must be applied in the order listed.
+
+### 1. Secure Token Revocation — Refresh Token Lifecycle (Sprint 4, Task 19)
+
+**Problem:** Stateless JWTs cannot be revoked before expiry. A stolen token gives an attacker uninterrupted access until natural expiry.
+
+**Agreed design:**
+- Reduce access token lifetime to **15 minutes** (`jwt.expiration-ms: 900000`). `JwtTokenServiceTest` hardcodes its own expiry value and is unaffected.
+- Add `jwt.refresh-expiration-ms: 604800000` (7 days) to `application.yaml`.
+- Introduce a `refresh_tokens` table (Flyway `V2`) and a `RefreshToken` entity.
+- Issue the refresh token in an **`HttpOnly`, `Secure`, `SameSite=Strict` cookie** — never in the JSON body. This prevents XSS from stealing the long-lived credential.
+- `/refresh` and `/logout` read the refresh token from the cookie only — no request body field for it.
+- On rotation: old token is marked `revoked = true`; new access JWT + new refresh cookie are issued.
+- **Token family invalidation (theft detection):** if a token whose `revoked = true` is presented to `/refresh`, immediately call `deleteAllByUser(user)` to nuke every active session for that account, then return `401`. The attacker's already-rotated token is destroyed. The user must re-authenticate.
+- Store the **SHA-256 hash** of the raw token in `token_hash`, never the plaintext — prevents DB-dump token replay.
+
+**New files for Task 19:**
+| File | Purpose |
+|---|---|
+| `src/main/resources/db/migration/V2__refresh_tokens.sql` | Creates `refresh_tokens` table |
+| `domain/entity/RefreshToken.java` | JPA entity |
+| `domain/repository/RefreshTokenRepository.java` | `findByTokenHash`, `deleteAllByUser` |
+| `auth/RefreshTokenService.java` | create, validateAndRotate, revoke |
+| `auth/AuthService.java` | register + login business logic |
+| `controller/AuthController.java` | `/api/auth/register`, `/login`, `/refresh`, `/logout` |
+| `dto/request/RegisterRequest.java` | username, email, password, role |
+| `dto/request/LoginRequest.java` | email, password |
+| `dto/response/AuthResponse.java` | accessToken, tokenType, expiresIn (no refreshToken field) |
+| Tests for every class above | Match existing test structure |
+
+**⚠️ Flyway warning:** `V2__refresh_tokens.sql` is executed by Flyway when `@SpringBootTest` and `@DataJpaTest` boot the Testcontainers database. A syntax error in this file will fail all 62 existing tests before a single test method runs. The script must be flawless PostgreSQL.
+
+---
+
+### 2. Query Pagination Restoration (Sprint 4, Task 20)
+
+**Problem:** `findAllByReporterAndDeletedAtIsNull` and `findAllByAssignedAnalystAndDeletedAtIsNull` return plain `List<Incident>`, which loads unbounded result sets into the JVM heap.
+
+**Fix:** Restore `Pageable` parameter and `Page<Incident>` return type on both methods. Update `IncidentService` callers and adjust any mock assertions in tests to use `.getContent()` where needed.
+
+---
+
+### 3. Optimistic Locking (Sprint 5, Task 24)
+
+**Problem:** Concurrent analyst updates to the same incident silently overwrite each other (last-write-wins).
+
+**Fix:** Add `@Version private Long version;` to `Incident.java`. Requires Flyway `V3__add_version_column.sql` (`ALTER TABLE incidents ADD COLUMN version BIGINT DEFAULT 0 NOT NULL`). `GlobalExceptionHandler` (Task 22) must catch `ObjectOptimisticLockingFailureException` and return `409 Conflict`.
+
+---
+
+### 4. Automated Audit Logging via Hibernate Envers (Sprint 5, Task 24)
+
+**Problem:** Building a custom audit log requires significant boilerplate and risks missing changes as the app scales.
+
+**Fix:** Add `org.hibernate.orm:hibernate-envers` to `pom.xml`. Annotate `Incident.java` with `@Audited`. Envers auto-creates `incidents_AUD` shadow table and logs every state change, user identity, and timestamp.
 
 ---
 
 ## Current State
-- **Active branch:** `main` (Sprint 3 fully merged)
-- **Sprint 4 is next — JWT + RBAC**
-- **52 tests passing**
+- **Active branch:** `feat/auth-endpoints` (Sprint 4 Task 19 complete, pending merge)
+- **92 tests passing** (0 failures, all JaCoCo coverage checks met)
 - **Frontend:** may be added after backend is complete — keep this in mind when planning Sprint 5+
 
-### Completed this session
-- `ResourceNotFoundException` — `com.securityincidentmanager.exception`
-- `IncidentService` — 7 methods: `create`, `getById`, `getAll`, `getByReporter`, `getByAnalyst`, `update`, `softDelete`
-- `IncidentServiceTest` — 13 Mockito tests, all passing
-- `UserService` — 3 methods: `getById`, `getAll`, `getByEmail`
-- `UserServiceTest` — 5 Mockito tests, all passing
-- `IncidentController` — 7 endpoints (POST, GET, GET/{id}, GET/reporter/{id}, GET/analyst/{id}, PUT/{id}, DELETE/{id})
-- `IncidentControllerTest` — 7 `@WebMvcTest` tests, all passing
-- `IncidentRepositoryTest` — updated to match `List<Incident>` return type
-- `pom.xml` — added `maven-surefire-plugin` for Mockito JDK 21 agent fix
-- `UserController` — 3 endpoints (GET/{id}, GET, GET/email/{email})
-- `UserControllerTest` — 3 `@WebMvcTest` tests, all passing
+### Sprint 4 progress
+- Task 17: `JwtTokenService` ✅ (branch `feat/jwt-token-service`, merged)
+- Task 18: `JwtAuthenticationFilter` + `CustomUserDetailsService` ✅ (branch `feat/jwt-filter`, merged)
+- Task 19: Auth endpoints + Refresh Token lifecycle ✅ (branch `feat/auth-endpoints`, **pending merge**)
+- Task 20: Spring Security config + RBAC + Pageable restoration ⬜ ← **START HERE**
+- Task 21: Security tests (`@WithMockUser`, forbidden/authorized paths) ⬜
 
-### Next task: Sprint 4 — Security (JWT + RBAC) ← START HERE
+### Next task: Task 20 — RBAC + Pageable restoration ← START HERE
 ```bash
-git checkout -b feat/jwt-token-service
+# First merge Task 19 branch
+git checkout main
+git merge feat/auth-endpoints
+git push origin main
+git branch -d feat/auth-endpoints
+git push origin --delete feat/auth-endpoints
+
+# Then start Task 20
+git checkout -b feat/rbac
 ```
+
+**Task 20 scope:**
+1. `SecurityConfig.java` — add RBAC: ADMIN gets full access, ANALYST can only access own incidents
+2. Restore `Pageable` parameter + `Page<Incident>` return type on `findAllByReporterAndDeletedAtIsNull` and `findAllByAssignedAnalystAndDeletedAtIsNull` in `IncidentRepository`
+3. Update `IncidentService` callers to pass `Pageable` argument
+4. Update test mocks that stub these repository methods (`List` → `Page`, add `.getContent()` where needed)
 
 ---
 
@@ -223,34 +297,43 @@ Now IntelliJ and Maven compile to separate directories and can never conflict.
 ## Package Structure (follow exactly)
 ```
 com.securityincidentmanager
-├── auth/
-├── config/
-├── controller/
+├── auth/            ← JwtTokenService, JwtAuthenticationFilter, CustomUserDetailsService
+│                      RefreshTokenService (Task 19), AuthService (Task 19)
+├── config/          ← SecurityConfig (Task 20)
+├── controller/      ← IncidentController, UserController
+│                      AuthController (Task 19)
 ├── domain/
 │   ├── entity/      ← User.java, Incident.java
+│   │                   RefreshToken.java (Task 19)
 │   └── repository/  ← UserRepository.java, IncidentRepository.java
+│                       RefreshTokenRepository.java (Task 19)
 ├── dto/
 │   ├── request/     ← IncidentCreateRequest.java, IncidentUpdateRequest.java
+│   │                   RegisterRequest.java, LoginRequest.java (Task 19)
 │   └── response/    ← IncidentResponse.java, UserResponse.java
-├── exception/
+│                       AuthResponse.java (Task 19)
+├── exception/       ← ResourceNotFoundException
+│                      (NotFoundException, ConflictException — Task 23)
 ├── mapper/          ← IncidentMapper.java, UserMapper.java
-└── service/
+└── service/         ← IncidentService, UserService
 ```
 
 ---
 
 ## Upcoming Work (see sprint/)
-**Sprint 3 — Services & Controllers** ← ACTIVE (`sprint/active/`)
-- Task 13: IncidentService + Mockito tests ✅
-- Task 14: UserService + Mockito tests ✅
-- Task 15: IncidentController + @WebMvcTest ✅
-- Task 16: UserController + @WebMvcTest ← NEXT
 
-**Sprint 4 — Security (JWT + RBAC)**
-- JWT token service, JWT filter, auth endpoints
-- Spring Security config, RBAC (ADMIN full access / ANALYST own incidents only)
+**Sprint 4 — Security (JWT + RBAC)** ← ACTIVE (`sprint/active/`)
+- Task 17: `JwtTokenService` ✅
+- Task 18: `JwtAuthenticationFilter` + `CustomUserDetailsService` ✅
+- Task 19: Auth endpoints + Refresh Token lifecycle ✅ (pending merge)
+- Task 20: Spring Security config + RBAC + Pageable restoration ⬜ ← NEXT
+- Task 21: Security tests ⬜
 
-**Sprint 5 — Error Handling & Audit Logging**
-- GlobalExceptionHandler, custom exceptions
-- Audit log table + Flyway migration
-- Integration tests (@SpringBootTest + Testcontainers)
+**Sprint 5 — Error Handling & Audit Logging** ⏸ BLOCKED until Sprint 4 merged
+- Task 22: `GlobalExceptionHandler` (`@RestControllerAdvice`) — must catch `ObjectOptimisticLockingFailureException` → `409`
+- Task 23: Custom exceptions (`NotFoundException`, `ConflictException`, etc.)
+- Task 24: Data integrity + audit logging
+  - Add `@Version private Long version` to `Incident.java`
+  - Flyway `V3__add_version_column.sql`
+  - Add `hibernate-envers` dependency + `@Audited` on `Incident.java`
+- Task 25: Integration tests (`@SpringBootTest` + Testcontainers validating audit layers and optimistic locks)
