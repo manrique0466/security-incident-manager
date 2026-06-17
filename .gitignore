@@ -51,6 +51,9 @@ logs/
 ### OWASP ###
 dependency-check-report.*
 
-# Local session handover
+# Local session files (never push to repo)
 HANDOVER.md
+PROJECT_LOG.md
+ARCHITECTURE.md
 sprint/
+pr-body-*.md
