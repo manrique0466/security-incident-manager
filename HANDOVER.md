@@ -18,9 +18,22 @@ Guided step-by-step as a beginner project with tests written alongside every fea
 - Write tests for everything — every class gets a test class, no exceptions
 - Work in feature branches (`feat/`, `fix/`, `chore/`, `test/`)
 - Commit messages: imperative mood, no special characters e.g. `feat: add incident service`
-- Always show branch cleanup commands after every merge
-- Delete branches after merging
+- **Always provide a PR body** after every commit (What, Endpoints if any, Tests, Notes)
+- **Always use this exact git flow every time — no exceptions:**
+  ```bash
+  git add .
+  git commit -m "..."
+  git push origin <branch>
+  git checkout main
+  git merge <branch>
+  git push origin main
+  git branch -d <branch>
+  git push origin --delete <branch>
+  ```
+- Delete branches after merging (both local and remote)
 - Reuse existing components — never create a duplicate
+- **Always state the full file path when providing a new class** — e.g. `src/main/java/com/securityincidentmanager/auth/JwtTokenService.java`
+- **After every new class is written, always give a full beginner-friendly explanation** — explain what the class does, what each method does, and why, as if explaining to a child learning to code
 - Follow `ARCHITECTURE.md` package structure at all times
 - Never start a new sprint until the current one is fully merged (see `sprint/BOARD.md`)
 - When user asks for "summary and handover", always update HANDOVER.md first, then commit it
@@ -125,9 +138,9 @@ Sprints are tracked in `sprint/` folder:
 ---
 
 ## Current State
-- **Active branch:** `main` (all Sprint 3 tasks merged except Task 16)
-- **Sprint 3 is active — Task 16 remaining**
-- **49 tests passing**
+- **Active branch:** `main` (Sprint 3 fully merged)
+- **Sprint 4 is next — JWT + RBAC**
+- **52 tests passing**
 - **Frontend:** may be added after backend is complete — keep this in mind when planning Sprint 5+
 
 ### Completed this session
@@ -140,22 +153,13 @@ Sprints are tracked in `sprint/` folder:
 - `IncidentControllerTest` — 7 `@WebMvcTest` tests, all passing
 - `IncidentRepositoryTest` — updated to match `List<Incident>` return type
 - `pom.xml` — added `maven-surefire-plugin` for Mockito JDK 21 agent fix
+- `UserController` — 3 endpoints (GET/{id}, GET, GET/email/{email})
+- `UserControllerTest` — 3 `@WebMvcTest` tests, all passing
 
-### Next task: UserController + @WebMvcTest ← START HERE
+### Next task: Sprint 4 — Security (JWT + RBAC) ← START HERE
 ```bash
-git checkout -b feat/user-controller
+git checkout -b feat/jwt-token-service
 ```
-Follow the same pattern as `IncidentController`. Read `UserService.java` and `UserServiceTest.java` first.
-
-Endpoints:
-- `GET /api/users/{id}` → 200
-- `GET /api/users` → 200
-- `GET /api/users/email/{email}` → 200
-
-Tests (`@WebMvcTest`, `excludeAutoConfiguration = SecurityAutoConfiguration.class`, `@MockitoBean`):
-- `getById_shouldReturn200_withResponse`
-- `getAll_shouldReturn200_withList`
-- `getByEmail_shouldReturn200_withResponse`
 
 ---
 
