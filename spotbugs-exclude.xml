@@ -10,4 +10,26 @@
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
 
+    <!--
+        JPA entity: getUser/setUser on a @ManyToOne relationship is required by Hibernate.
+    -->
+    <Match>
+        <Class name="com.securityincidentmanager.domain.entity.RefreshToken"/>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!--
+        Spring beans injected via constructor into @Service / @Configuration classes.
+        SpotBugs does not understand Spring DI — these are not dangerous mutations.
+    -->
+    <Match>
+        <Class name="com.securityincidentmanager.auth.RefreshTokenService"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
+    <Match>
+        <Class name="com.securityincidentmanager.config.SecurityConfig"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
 </FindBugsFilter>
