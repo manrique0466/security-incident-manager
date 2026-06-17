@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Service
-public class JwtTokenService {
+public final class JwtTokenService {
 
     private static final String CLAIM_ROLE = "role";
 
