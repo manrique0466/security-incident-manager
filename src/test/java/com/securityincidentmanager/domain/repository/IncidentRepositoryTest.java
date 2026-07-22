@@ -16,7 +16,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class IncidentRepositoryTest {
 
     @Container
+    @SuppressWarnings("resource")
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
             .withDatabaseName("incident_manager_test")
             .withUsername("appuser")
@@ -95,7 +95,7 @@ class IncidentRepositoryTest {
         Page<Incident> result = incidentRepository.findAllByDeletedAtIsNull(PageRequest.of(0, 10));
 
         assertThat(result.getTotalElements()).isEqualTo(1);
-        assertThat(result.getContent().get(0).getTitle()).isEqualTo("Active incident");
+        assertThat(result.getContent().getFirst().getTitle()).isEqualTo("Active incident");
     }
 
     @Test
@@ -123,11 +123,11 @@ class IncidentRepositoryTest {
         incidentRepository.save(buildIncident("Reporter's incident", reporter));
         incidentRepository.save(buildIncident("Other's reporter's incident", analyst));
 
-        List<Incident> result = incidentRepository
-                .findAllByReporterAndDeletedAtIsNull(reporter);
+        Page<Incident> result = incidentRepository
+                .findAllByReporterAndDeletedAtIsNull(reporter, PageRequest.of(0, 10));
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getTitle()).isEqualTo("Reporter's incident");
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getContent().getFirst().getTitle()).isEqualTo("Reporter's incident");
     }
 
     @Test
@@ -137,11 +137,11 @@ class IncidentRepositoryTest {
         incidentRepository.save(assigned);
         incidentRepository.save(buildIncident("Unassigned incident", reporter));
 
-        List<Incident> result = incidentRepository
-                .findAllByAssignedAnalystAndDeletedAtIsNull(analyst);
+        Page<Incident> result = incidentRepository
+                .findAllByAssignedAnalystAndDeletedAtIsNull(analyst, PageRequest.of(0, 10));
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getTitle()).isEqualTo("Assigned incident");
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getContent().getFirst().getTitle()).isEqualTo("Assigned incident");
     }
 
     @Test
@@ -150,9 +150,9 @@ class IncidentRepositoryTest {
         deleted.setDeletedAt(LocalDateTime.now());
         incidentRepository.save(deleted);
 
-        List<Incident> result = incidentRepository
-                .findAllByReporterAndDeletedAtIsNull(reporter);
+        Page<Incident> result = incidentRepository
+                .findAllByReporterAndDeletedAtIsNull(reporter, PageRequest.of(0, 10));
 
-        assertThat(result).isEmpty();
+        assertThat(result.getTotalElements()).isZero();
     }
 }

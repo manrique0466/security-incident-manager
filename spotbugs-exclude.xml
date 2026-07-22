@@ -32,4 +32,15 @@
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
 
+    <!--
+        UserPrincipal intentionally wraps the live User entity by reference, not a
+        defensive copy, so getId()/getAuthorities() always reflect the authenticated
+        user for the current request. It is short-lived and request-scoped, not a
+        long-lived shared mutable object, so this is a false positive.
+    -->
+    <Match>
+        <Class name="com.securityincidentmanager.auth.UserPrincipal"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
 </FindBugsFilter>

@@ -7,7 +7,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,9 +15,9 @@ public interface IncidentRepository extends JpaRepository<Incident, UUID> {
 
     Page<Incident> findAllByDeletedAtIsNull(Pageable pageable);
 
-    List<Incident> findAllByReporterAndDeletedAtIsNull(User reporter);
+    Page<Incident> findAllByReporterAndDeletedAtIsNull(User reporter, Pageable pageable);
 
-    List<Incident> findAllByAssignedAnalystAndDeletedAtIsNull(User analyst);
+    Page<Incident> findAllByAssignedAnalystAndDeletedAtIsNull(User analyst, Pageable pageable);
 
     Optional<Incident> findByIdAndDeletedAtIsNull(UUID id);
 }

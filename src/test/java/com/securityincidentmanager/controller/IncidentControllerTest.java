@@ -122,7 +122,7 @@ class IncidentControllerTest {
         IncidentResponse response = new IncidentResponse();
         response.setTitle("Reporter incident");
 
-        when(incidentService.getByReporter(reporterId)).thenReturn(List.of(response));
+        when(incidentService.getByReporter(eq(reporterId), any(Pageable.class))).thenReturn(List.of(response));
 
         mockMvc.perform(get("/api/incidents/reporter/{reporterId}", reporterId))
                 .andExpect(status().isOk())
@@ -138,7 +138,7 @@ class IncidentControllerTest {
         IncidentResponse response = new IncidentResponse();
         response.setTitle("Analyst incident");
 
-        when(incidentService.getByAnalyst(analystId)).thenReturn(List.of(response));
+        when(incidentService.getByAnalyst(eq(analystId), any(Pageable.class))).thenReturn(List.of(response));
 
         mockMvc.perform(get("/api/incidents/analyst/{analystId}", analystId))
                 .andExpect(status().isOk())

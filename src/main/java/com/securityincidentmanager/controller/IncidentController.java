@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,18 +43,23 @@ public class IncidentController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<IncidentResponse>> getAll(Pageable pageable) {
         return ResponseEntity.ok(incidentService.getAll(pageable));
     }
 
     @GetMapping("reporter/{reporterId}")
-    public ResponseEntity<List<IncidentResponse>> getByReporter(@PathVariable UUID reporterId) {
-        return ResponseEntity.ok(incidentService.getByReporter(reporterId));
+    @PreAuthorize("hasRole('ADMIN') or #reporterId == authentication.principal.id")
+    public ResponseEntity<List<IncidentResponse>> getByReporter(
+            @PathVariable UUID reporterId, Pageable pageable) {
+        return ResponseEntity.ok(incidentService.getByReporter(reporterId, pageable));
     }
 
     @GetMapping("/analyst/{analystId}")
-    public ResponseEntity<List<IncidentResponse>> getByAnalyst(@PathVariable UUID analystId) {
-        return ResponseEntity.ok(incidentService.getByAnalyst(analystId));
+    @PreAuthorize("hasRole('ADMIN') or #analystId == authentication.principal.id")
+    public ResponseEntity<List<IncidentResponse>> getByAnalyst(
+            @PathVariable UUID analystId, Pageable pageable) {
+        return ResponseEntity.ok(incidentService.getByAnalyst(analystId, pageable));
     }
 
     @PutMapping("/{id}")
