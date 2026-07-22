@@ -11,6 +11,8 @@ import java.util.UUID;
 
 public final class UserPrincipal implements UserDetails {
 
+    private static final long serialVersionUID = 1L;
+
     private final transient User user;
 
     public UserPrincipal(User user) {
