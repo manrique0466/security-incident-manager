@@ -136,12 +136,14 @@ class IncidentServiceTest {
         reporter.setId(reporterId);
         Incident incident = new Incident();
         IncidentResponse response = new IncidentResponse();
+        Pageable pageable = Pageable.unpaged();
+        Page<Incident> page = new PageImpl<>(List.of(incident));
 
         when(userRepository.findById(reporterId)).thenReturn(Optional.of(reporter));
-        when(incidentRepository.findAllByReporterAndDeletedAtIsNull(reporter)).thenReturn(List.of(incident));
+        when(incidentRepository.findAllByReporterAndDeletedAtIsNull(reporter, pageable)).thenReturn(page);
         when(incidentMapper.toResponse(incident)).thenReturn(response);
 
-        List<IncidentResponse> result = incidentService.getByReporter(reporterId);
+        List<IncidentResponse> result = incidentService.getByReporter(reporterId, pageable);
 
         assertThat(result).hasSize(1).containsExactly(response);
     }
@@ -152,7 +154,7 @@ class IncidentServiceTest {
 
         when(userRepository.findById(reporterId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> incidentService.getByReporter(reporterId))
+        assertThatThrownBy(() -> incidentService.getByReporter(reporterId, Pageable.unpaged()))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -165,12 +167,14 @@ class IncidentServiceTest {
         analyst.setId(analystId);
         Incident incident = new Incident();
         IncidentResponse response = new IncidentResponse();
+        Pageable pageable = Pageable.unpaged();
+        Page<Incident> page = new PageImpl<>(List.of(incident));
 
         when(userRepository.findById(analystId)).thenReturn(Optional.of(analyst));
-        when(incidentRepository.findAllByAssignedAnalystAndDeletedAtIsNull(analyst)).thenReturn(List.of(incident));
+        when(incidentRepository.findAllByAssignedAnalystAndDeletedAtIsNull(analyst, pageable)).thenReturn(page);
         when(incidentMapper.toResponse(incident)).thenReturn(response);
 
-        List<IncidentResponse> result = incidentService.getByAnalyst(analystId);
+        List<IncidentResponse> result = incidentService.getByAnalyst(analystId, pageable);
 
         assertThat(result).hasSize(1).containsExactly(response);
     }
@@ -181,7 +185,7 @@ class IncidentServiceTest {
 
         when(userRepository.findById(analystId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> incidentService.getByAnalyst(analystId))
+        assertThatThrownBy(() -> incidentService.getByAnalyst(analystId, Pageable.unpaged()))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 

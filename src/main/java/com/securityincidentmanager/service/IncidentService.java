@@ -51,19 +51,21 @@ public class IncidentService {
                 .toList();
     }
 
-    public List<IncidentResponse> getByReporter(UUID reporterId) {
+    public List<IncidentResponse> getByReporter(UUID reporterId, Pageable pageable) {
         User reporter = userRepository.findById(reporterId)
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + reporterId));
-        return incidentRepository.findAllByReporterAndDeletedAtIsNull(reporter)
+        return incidentRepository.findAllByReporterAndDeletedAtIsNull(reporter, pageable)
+                .getContent()
                 .stream()
                 .map(incidentMapper::toResponse)
                 .toList();
     }
 
-    public List<IncidentResponse> getByAnalyst(UUID analystId) {
+    public List<IncidentResponse> getByAnalyst(UUID analystId, Pageable pageable) {
         User analyst = userRepository.findById(analystId)
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND + analystId));
-        return incidentRepository.findAllByAssignedAnalystAndDeletedAtIsNull(analyst)
+        return incidentRepository.findAllByAssignedAnalystAndDeletedAtIsNull(analyst, pageable)
+                .getContent()
                 .stream()
                 .map(incidentMapper::toResponse)
                 .toList();
